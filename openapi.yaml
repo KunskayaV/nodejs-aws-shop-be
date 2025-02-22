@@ -1,0 +1,78 @@
+openapi: 3.0.3
+info:
+  title: Swagger Petstore - OpenAPI 3.0
+  description: |-
+    This is a Toy Store Server based on the OpenAPI 3.0 specification.
+  version: 0.0.1
+servers:
+  - url: https://apbnma41mf.execute-api.eu-west-1.amazonaws.com/dev/
+tags:
+  - name: products
+    description: Toy store products information
+paths:
+  /products:
+    get:
+      tags:
+        - products
+      summary: Get all products
+      operationId: getProducts
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Products'
+  /products/{productId}:
+    get:
+      tags:
+        - products
+      summary: Get product by ID
+      description: Returns a single product
+      operationId: getProductById
+      parameters:
+        - name: productId
+          in: path
+          description: ID of product to return
+          required: true
+          schema:
+            type: string
+          example: "7567ec4b-b10c-48c5-9345-fc73c48a80aa"
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'          
+        '400':
+          description: Invalid ID supplied
+        '404':
+          description: Product not found
+components:
+  schemas:
+    Product:
+      type: object
+      required:
+        - id
+        - title
+        - price
+      properties:
+        id:
+          type: string
+          example: "5267ec4b-b10c-48c5-9345-fc73c48a80a1"
+        title:
+          type: string
+          example: "Product title"
+        description:
+          type: string
+          example: "Product description"
+        price:
+          type: integer
+          format: int64
+          example: 10
+    Products:
+      type: array
+      items:
+        "$ref": "#/components/schemas/Product"
+  
