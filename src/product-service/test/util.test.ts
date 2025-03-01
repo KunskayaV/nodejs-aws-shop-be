@@ -1,4 +1,5 @@
-import { lambdaBaseErrorHandler, Handler, ValidationError, NotFoundError } from '../src/product-service/utils';
+import { baseHeaders } from '../src/common/constants';
+import { lambdaBaseErrorHandler, Handler, ValidationError, NotFoundError } from '../src/common/utils';
 import { APIGatewayProxyEventV2 } from 'aws-lambda';
 
 describe('lambdaBaseErrorHandler', () => {
@@ -13,6 +14,7 @@ describe('lambdaBaseErrorHandler', () => {
     test('should handle successful execution', async () => {
         (mockHandler as jest.Mock).mockResolvedValue({
             statusCode: 200,
+            headers: baseHeaders,
             body: JSON.stringify({ message: 'Success' }),
         });
 
@@ -20,6 +22,7 @@ describe('lambdaBaseErrorHandler', () => {
         const result = await wrappedHandler(event);
         expect(result).toEqual({
             statusCode: 200,
+            headers: baseHeaders,
             body: JSON.stringify({ message: 'Success' }),
         });
     });
@@ -32,6 +35,7 @@ describe('lambdaBaseErrorHandler', () => {
         const result = await wrappedHandler(event);
         expect(result).toEqual({
             statusCode: 400,
+            headers: baseHeaders,
             body: JSON.stringify({ error: 'Invalid input', details: errorMessage }),
         });
     });
@@ -44,6 +48,7 @@ describe('lambdaBaseErrorHandler', () => {
         const result = await wrappedHandler(event);
         expect(result).toEqual({
             statusCode: 404,
+            headers: baseHeaders,
             body: JSON.stringify({ error: 'Not Found', details: errorMessage }),
         });
     });
@@ -56,6 +61,7 @@ describe('lambdaBaseErrorHandler', () => {
         const result = await wrappedHandler(event);
         expect(result).toEqual({
             statusCode: 500,
+            headers: baseHeaders,
             body: JSON.stringify({ error: 'Internal Server Error', details: errorMessage }),
         });
     });

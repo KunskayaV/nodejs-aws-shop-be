@@ -5,18 +5,18 @@
     "nodejs-aws-shop-be": "bin/nodejs-aws-shop-be.js"
   },
   "scripts": {
-    "build": "tsc",
-    "watch": "tsc -w",
+    "build": "npm run build:lambda",
+    "build:lambda": "cd src/product-service && npm install && npm run build",
     "test": "jest",
     "cdk:start": "cdk",
     "cdk:deploy-dev": "npm run build && cdk deploy --hotswap",
-    "cdk:deploy": "npm run build && cdk deploy",
+    "cdk:deploy": "cdk deploy",
     "cdk:destroy": "cdk destroy",
     "cdk:bootstrap": "cdk bootstrap",
-    "cdk:diff": "cdk diff"
+    "cdk:diff": "cdk diff",
+    "script:dynamodb": "node -r dotenv/config src/product-service/scripts/fillDynamoDB.js"
   },
   "devDependencies": {
-    "@types/aws-lambda": "^8.10.147",
     "@types/jest": "^29.5.14",
     "@types/node": "22.7.9",
     "aws-cdk": "^2.1000.2",
@@ -27,6 +27,7 @@
   },
   "dependencies": {
     "aws-cdk-lib": "^2.179.0",
-    "constructs": "^10.4.2"
+    "constructs": "^10.4.2",
+    "dotenv": "^16.4.7"
   }
 }
