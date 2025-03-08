@@ -1,0 +1,20 @@
+{
+  "name": "product-service",
+  "version": "1.0.0",
+  "scripts": {
+    "prebuild": "rm -rf dist",
+    "build": "tsc",
+    "watch": "tsc -w"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.758.0",
+    "@aws-sdk/s3-request-presigner": "^3.758.0",
+    "csv-parser": "^3.2.0",
+    "http-status-codes": "^2.3.0"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.147",
+    "@types/node": "22.7.9",
+    "typescript": "~5.6.3"
+  }
+}

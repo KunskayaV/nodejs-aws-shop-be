@@ -6,15 +6,19 @@
   },
   "scripts": {
     "build": "npm run build:lambda",
-    "build:lambda": "cd src/product-service && npm install && npm run build",
+    "build:lambda": "cd src/import-service && npm install && npm run build",
     "test": "jest",
     "cdk:start": "cdk",
-    "cdk:deploy-dev": "npm run build && cdk deploy --hotswap",
-    "cdk:deploy": "cdk deploy",
+    "cdk:deploy-dev": "npm run build && cdk deploy --all --hotswap",
+    "cdk:deploy": "cdk deploy --all",
     "cdk:destroy": "cdk destroy",
     "cdk:bootstrap": "cdk bootstrap",
     "cdk:diff": "cdk diff",
-    "script:dynamodb": "node -r dotenv/config src/product-service/scripts/fillDynamoDB.js"
+    "script:dynamodb": "node -r dotenv/config src/product-service/scripts/fillDynamoDB.js",
+    "test:lambda": "echo '{\"queryStringParameters\":{\"name\":\"products.csv\"}}' | sam local invoke --event - import-products-file-lambda-dev -t ./cdk.out/rs-toy-shop-be-import-stack.template.json",
+    "test:lambda-import": "sam local invoke --event ./event.json import-file-parser-lambda-dev -t ./cdk.out/rs-toy-shop-be-import-stack.template.json",
+    "test:lambda-product": "sam local invoke get-products-list-lambda-dev --no-event -t ./cdk.out/rs-toy-shop-be-stack.template.json",
+    "cdk:synth": "cdk synth --all --no-staging"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",

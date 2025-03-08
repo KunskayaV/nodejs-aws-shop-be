@@ -1,0 +1,32 @@
+const fs = require('fs');
+const path = require('path');
+
+// Function specific paths
+const functionsPath = path.join(process.cwd(), 'src', 'product-service');
+const commonPath = path.join(process.cwd(), 'src', 'common');
+
+// List of Lambda functions
+const functions = ['getProductsList', 'createNewProduct', 'getProductById'];
+
+// This function creates a symlink for the common directory in each function's directory
+function createSymlinks() {
+  functions.forEach(func => {
+    const targetDir = path.join(functionsPath, func, 'common');
+
+    // Check if the symlink already exists
+    if (fs.existsSync(targetDir)) {
+      console.log(`Symlink already exists: ${targetDir}`);
+      return;
+    }
+
+    try {
+      // Create symlink
+      fs.symlinkSync(commonPath, targetDir, 'junction'); // Use 'junction' for Windows compatibility
+      console.log(`Symlink created: ${targetDir} -> ${commonPath}`);
+    } catch (error) {
+      console.error(`Error creating symlink for ${func}: ${error}`);
+    }
+  });
+}
+
+createSymlinks();

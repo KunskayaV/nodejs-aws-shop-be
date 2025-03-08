@@ -5,7 +5,9 @@
     "outDir": "./build",  // Output directory for JavaScript files
     "rootDir": "./src",   // Root directory for TypeScript files
     "lib": ["ES2020"],
-    "strict": true
+    "strict": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
   },
   "include": ["src/**/*.ts"],
   "exclude": ["cdk", "node_modules", "**/*.spec.ts"]
