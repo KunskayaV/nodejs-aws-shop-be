@@ -1,7 +1,6 @@
 import * as cdk from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
-import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 import * as path from 'path';
@@ -10,12 +9,12 @@ import * as dotenv from 'dotenv';
 import { getLambdaBundlingBashCommand } from './helpers';
 dotenv.config();
 
-interface INodejsAwsShopBeStackProps extends cdk.StackProps {
+interface INodejsAwsShopBeProductStackProps extends cdk.StackProps {
   stage: string;
 }
 
-export class NodejsAwsShopBeStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: INodejsAwsShopBeStackProps) {
+export class NodejsAwsShopBeProductStack extends cdk.Stack {
+  constructor(scope: Construct, id: string, props?: INodejsAwsShopBeProductStackProps) {
     super(scope, id, props);
 
     const stage = props?.stage || 'dev'; 
