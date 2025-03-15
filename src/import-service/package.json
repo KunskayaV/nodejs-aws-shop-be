@@ -1,5 +1,5 @@
 {
-  "name": "product-service",
+  "name": "import-service",
   "version": "1.0.0",
   "scripts": {
     "prebuild": "rm -rf dist",
@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.758.0",
+    "@aws-sdk/client-sqs": "^3.758.0",
     "@aws-sdk/s3-request-presigner": "^3.758.0",
     "csv-parser": "^3.2.0",
     "http-status-codes": "^2.3.0"

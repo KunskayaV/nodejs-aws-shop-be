@@ -1,13 +1,20 @@
 import { S3Event, S3EventRecord } from 'aws-lambda';
 import { StatusCodes } from 'http-status-codes';
 import { S3Client, GetObjectCommand, CopyObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import {
+  GetQueueUrlCommand,
+  SQSClient,
+  SendMessageBatchCommand,
+  SendMessageBatchRequestEntry 
+ } from '@aws-sdk/client-sqs';
 import { Readable } from 'stream';
 
 import { handler } from '../src/handlers/importFileParser';
-import { logEvent } from '../src/common/utils';
 import { IMPORT_BUCKET_PREFIX } from '../src/common/constants';
+import { logEvent } from '../src/common/utils';
 
 jest.mock('@aws-sdk/client-s3');
+jest.mock('@aws-sdk/client-sqs');
 jest.mock('../src/common/utils', () => ({
   ...jest.requireActual('../src/common/utils'),
   logEvent: jest.fn(),
@@ -44,6 +51,8 @@ describe('importFileParser handler', () => {
     ],
   };
 
+  const QueueUrl = 'QueueUrl';
+
   beforeEach(() => {
     // Mock S3Client.send()
     S3Client.prototype.send = jest.fn((command) => {
@@ -59,6 +68,17 @@ describe('importFileParser handler', () => {
       }
       return Promise.reject(new Error('Unknown command'));
     });
+    // Mock SQSClient.send()
+    SQSClient.prototype.send = jest.fn((command) => {
+      if (command instanceof GetQueueUrlCommand) {
+        // Mock GetObjectCommand to return a simulated Readable CSV file body
+        return Promise.resolve({ QueueUrl });
+      } else if (command instanceof SendMessageBatchCommand) {
+        // Mock CopyObjectCommand to succeed
+        return Promise.resolve();
+      }
+      return Promise.reject(new Error('Unknown command'));
+    });
   });
 
   it('should process the CSV file, copy it to the "parsed" folder, and delete the original file', async () => {
@@ -69,11 +89,12 @@ describe('importFileParser handler', () => {
     expect(S3Client.prototype.send).toHaveBeenCalledWith(expect.any(CopyObjectCommand));
     expect(S3Client.prototype.send).toHaveBeenCalledWith(expect.any(DeleteObjectCommand));
 
+
+    expect(SQSClient.prototype.send).toHaveBeenCalledWith(expect.any(GetQueueUrlCommand));
+    expect(SQSClient.prototype.send).toHaveBeenCalledWith(expect.any(SendMessageBatchCommand));
+
     // Assertions for response
-    expect(response).toEqual({
-      statusCode: StatusCodes.OK,
-      body: JSON.stringify({ message: 'File is processed successfully' }),
-    });
+    expect(logEvent).toHaveBeenCalledWith('File is processed successfully');
   });
 
   it('should throw an error if the CSV file is invalid', async () => {
@@ -90,7 +111,9 @@ describe('importFileParser handler', () => {
       return Promise.reject(new Error('Unknown command'));
     });
 
-    await expect(handler(s3Event)).rejects.toThrow();
+    await handler(s3Event);
+
+    expect(logEvent).toHaveBeenCalledWith(`Error processing file: Error: Unknown command`);
   });
 
   it('should throw an error if S3 GetObjectCommand fails', async () => {
@@ -101,6 +124,8 @@ describe('importFileParser handler', () => {
       return Promise.resolve();
     });
 
-    await expect(handler(s3Event)).rejects.toThrow('S3 GetObjectCommand failed');
+    await handler(s3Event);
+
+    expect(logEvent).toHaveBeenCalledWith(`Error processing file: Error: S3 GetObjectCommand failed`);
   });
 });

@@ -1,14 +1,16 @@
 export function getLambdaBundlingBashCommand(lambdaFileName: string) {
   return [
     'bash', '-c', [
+      // https://github.com/aws/aws-cdk/issues/8707#issuecomment-757435414
+      'export npm_config_update_notifier=false',
+      'export npm_config_cache=$(mktemp -d)',
       // Copy all files to asset-output
-      'cp -r /asset-input/src/ /asset-output/',
+      'cp -r /asset-input/src/ /asset-output/src',
       'cp -r /asset-input/package*.json /asset-output/',
       'cp -r /asset-input/tsconfig.json /asset-output/',
-      'cp -r /asset-input/node_modules/ /asset-output/',
-      // Install dependencies
+      // // Install dependencies
       'cd /asset-output',
-      'npm i',
+      'npm ci',
       'npm run build',
       // Create dist structure
       'cp -r node_modules dist/',

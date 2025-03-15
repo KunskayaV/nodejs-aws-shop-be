@@ -11,3 +11,4 @@ export const baseHeaders = {
 
 export const PRODUCT_TABLE_NAME = process.env.PRODUCT_TABLE_NAME || '';
 export const STOCK_TABLE_NAME = process.env.STOCK_TABLE_NAME || '';
+export const SNS_TOPIC_ARN = process.env.SNS_TOPIC_ARN || '';
