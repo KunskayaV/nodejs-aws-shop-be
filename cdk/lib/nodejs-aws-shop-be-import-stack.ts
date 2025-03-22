@@ -13,6 +13,7 @@ dotenv.config();
 
 interface INodejsAwsShopBeImportStackProps extends cdk.StackProps {
   stage: string;
+  basicAuthorizerArn: string; // To receive the authorizer ARN
 }
 
 export class NodejsAwsShopBeImportStack extends cdk.Stack {
@@ -122,10 +123,58 @@ export class NodejsAwsShopBeImportStack extends cdk.Stack {
       defaultCorsPreflightOptions: {
         allowOrigins: apigateway.Cors.ALL_ORIGINS,
         allowMethods: apigateway.Cors.ALL_METHODS,
+        allowHeaders: [
+          'Content-Type',
+          'Authorization',
+        ],
       },
       deployOptions: {
         stageName: stage // Use the stage variable for the API Gateway stage
       }
+    });
+
+    // Add CORS headers to default 4XX response
+    api.addGatewayResponse('Default4XX', {
+      type: apigateway.ResponseType.DEFAULT_4XX,
+      responseHeaders: {
+        'Access-Control-Allow-Origin': "'*'",
+        'Access-Control-Allow-Headers': "'Content-Type,Authorization'",
+        'Access-Control-Allow-Methods': "'OPTIONS,GET'",
+        'Access-Control-Allow-Credentials': "'true'"
+      }
+    });
+
+    // Add CORS headers to default 5XX response
+    api.addGatewayResponse('Default5XX', {
+      type: apigateway.ResponseType.DEFAULT_5XX,
+      responseHeaders: {
+        'Access-Control-Allow-Origin': "'*'",
+        'Access-Control-Allow-Headers': "'Content-Type,Authorization'",
+        'Access-Control-Allow-Methods': "'OPTIONS,GET'",
+        'Access-Control-Allow-Credentials': "'true'"
+      }
+    });
+
+    // Reference the existing authorizer lambda
+    const basicAuthorizer = lambda.Function.fromFunctionArn(
+      this,
+      'BasicAuthorizerFunction',
+      props?.basicAuthorizerArn || ''
+    );
+
+    // Add permissions for API Gateway to invoke the Lambda authorizer
+    const authorizerInvokePermission = new lambda.CfnPermission(this, 'AuthorizerInvokePermission', {
+      action: 'lambda:InvokeFunction',
+      functionName: basicAuthorizer.functionName,
+      principal: 'apigateway.amazonaws.com',
+      sourceArn: `arn:aws:execute-api:${this.region}:${this.account}:${api.restApiId}/*/*`
+    });
+
+     // Create Lambda authorizer
+     const authorizer = new apigateway.TokenAuthorizer(this, `import-authorizer-${stage}`, {
+      handler: basicAuthorizer,
+      identitySource: apigateway.IdentitySource.header('Authorization'),
+      resultsCacheTtl: cdk.Duration.seconds(0) // Set to 0 to disable caching
     });
 
     // Create API resources and methods
@@ -145,13 +194,42 @@ export class NodejsAwsShopBeImportStack extends cdk.Stack {
       requestTemplates: {
         'application/json': JSON.stringify({ statusCode: 200 }),
       },
+      // Add CORS headers to integration response
+      integrationResponses: [
+        {
+          statusCode: '200',
+          responseParameters: {
+            'method.response.header.Access-Control-Allow-Origin': "'*'",
+            'Access-Control-Allow-Headers': "'Content-Type,Authorization'",
+            'method.response.header.Access-Control-Allow-Methods': "'OPTIONS,GET'"
+          }
+        }
+      ]
     }), {
+      authorizer: authorizer, // Add the authorizer
+      authorizationType: apigateway.AuthorizationType.CUSTOM,
       requestParameters: {
         'method.request.querystring.name': true, // This makes the 'name' parameter required
       },
-      requestValidator: validator
+      requestValidator: validator,
+      // Add CORS headers to method response
+      methodResponses: [
+        {
+          statusCode: '200',
+          responseParameters: {
+            'method.response.header.Access-Control-Allow-Origin': true,
+            'method.response.header.Access-Control-Allow-Headers': true,
+            'method.response.header.Access-Control-Allow-Methods': true
+          }
+        }
+      ]
     });
 
+    // Add explicit dependency on the permission
+    const deployment = api.latestDeployment;
+    if (deployment) {
+      deployment.node.addDependency(authorizerInvokePermission);
+    }
 
     // Output the API URL
     new cdk.CfnOutput(this, 'ApiUrl', {

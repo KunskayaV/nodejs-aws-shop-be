@@ -13,6 +13,7 @@
     "cdk:deploy": "cdk deploy --all",
     "cdk:deploy:product": "cdk deploy rs-toy-shop-be-stack",
     "cdk:deploy:import": "cdk deploy rs-toy-shop-be-import-stack",
+    "cdk:deploy:authorization": "cdk deploy rs-toy-shop-be-authorization-stack",
     "cdk:destroy": "cdk destroy",
     "cdk:bootstrap": "cdk bootstrap",
     "cdk:diff": "cdk diff",
