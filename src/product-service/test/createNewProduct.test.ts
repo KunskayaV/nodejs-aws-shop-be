@@ -4,7 +4,7 @@ import { StatusCodes } from 'http-status-codes';
 
 import { handler } from '../src/handlers/createNewProduct';
 
-import { validateProduct } from '../src/common/validators';
+import { runValidationForProduct, validateProduct } from '../src/common/validators';
 import { createItemInDBWithTransaction } from '../src/common/clients/DBClient';
 import { ValidationError } from '../src/common/utils';
 import { baseHeaders } from '../src/common/constants';
@@ -28,12 +28,12 @@ describe('createNewProduct handler', () => {
   } as APIGatewayProxyEventV2;
 
   it('should create a product with transaction', async () => {
-    (validateProduct as jest.Mock).mockImplementation(() => true);
+    (runValidationForProduct as jest.Mock).mockImplementation(() => true);
     (createItemInDBWithTransaction as jest.Mock).mockResolvedValue(true);
 
     const response = await handler(event);
 
-    expect(validateProduct).toHaveBeenCalledWith(productData);
+    expect(runValidationForProduct).toHaveBeenCalledWith(productData);
     expect(createItemInDBWithTransaction).toHaveBeenCalledWith(expect.anything());
     expect(response).toEqual({
       statusCode: StatusCodes.CREATED,

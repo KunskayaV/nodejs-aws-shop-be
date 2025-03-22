@@ -23,7 +23,6 @@ export const handler = async (event: APIGatewayProxyEventV2): Promise<APIGateway
   const s3Params = {
     Bucket: IMPORT_BUCKET_NAME,
     Key: `${IMPORT_BUCKET_PREFIX}/${fileName}`,
-    expires: 60,
   };
 
   const s3Client = new S3Client();

@@ -3,9 +3,8 @@ import { StatusCodes } from 'http-status-codes';
 
 import { handler } from '../src/handlers/importProductsFile';
 import { ValidationError } from '../src/common/utils';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { IMPORT_BUCKET_NAME, IMPORT_BUCKET_PREFIX } from '../src/common/constants';
 
 // Mock AWS SDK methods
 jest.mock('@aws-sdk/client-s3');

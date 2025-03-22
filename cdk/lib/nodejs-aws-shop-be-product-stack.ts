@@ -1,11 +1,16 @@
 import * as cdk from 'aws-cdk-lib';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
+import * as sqs from 'aws-cdk-lib/aws-sqs';
+import * as eventsources from 'aws-cdk-lib/aws-lambda-event-sources';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as sns from 'aws-cdk-lib/aws-sns';
+import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
+
 import { Construct } from 'constructs';
 import * as path from 'path';
-
 import * as dotenv from 'dotenv';
+
 import { getLambdaBundlingBashCommand } from './helpers';
 dotenv.config();
 
@@ -21,6 +26,11 @@ export class NodejsAwsShopBeProductStack extends cdk.Stack {
 
     const PRODUCT_TABLE_NAME = process.env.PRODUCT_TABLE_NAME || '';
     const STOCK_TABLE_NAME = process.env.STOCK_TABLE_NAME || '';
+    const SQS_BASE_NAME = process.env.SQS_BASE_NAME || '';
+    const SQS_PROCESSING_BATCH_SIZE = Number(process.env.SQS_PROCESSING_BATCH_SIZE) || 10;
+    const SNS_EXPENSIVE_PRODUCT_SUBSCRIPTION_EMAIL = process.env.SNS_EXPENSIVE_PRODUCT_SUBSCRIPTION_EMAIL || '';
+    const SNS_REGULAR_PRODUCT_SUBSCRIPTION_EMAIL = process.env.SNS_REGULAR_PRODUCT_SUBSCRIPTION_EMAIL || '';
+    const BASE_PRODUCT_PRICE = Number(process.env.BASE_PRODUCT_PRICE) || 0;
 
     // Create Lambda functions
     const getProductsListLambda = new lambda.Function(this, `get-products-list-lambda-${stage}`, {
@@ -112,6 +122,95 @@ export class NodejsAwsShopBeProductStack extends cdk.Stack {
     getProductByIdLambda.addToRolePolicy(dynamoDBProductByIdPolicy);
     createProductLambda.addToRolePolicy(dynamoDBCreateProductPolicy);
 
+
+    // Create SQS Queue
+    const catalogItemsQueue = new sqs.Queue(this, `${SQS_BASE_NAME}-${stage}`, {
+      queueName: `rs-toy-shop-catalog-items-queue-${stage}`,
+      visibilityTimeout: cdk.Duration.seconds(30), // Should be greater than lambda timeout
+      receiveMessageWaitTime: cdk.Duration.seconds(10) // Enable long polling, max is 20 seconds
+    });
+
+    // Create SNS Topic
+    const createProductTopic = new sns.Topic(this, `rs-toy-shop-create-product-topic-${stage}`, {
+      topicName: `rs-toy-shop-create-product-topic-${stage}`,
+    });
+
+    // Add email subscription for expensive products (price >= BASE_PRODUCT_PRICE)
+    createProductTopic.addSubscription(
+      new subscriptions.EmailSubscription(SNS_EXPENSIVE_PRODUCT_SUBSCRIPTION_EMAIL, {
+        filterPolicy: {
+          price: sns.SubscriptionFilter.numericFilter({
+            greaterThanOrEqualTo: BASE_PRODUCT_PRICE
+          })
+        }
+      })
+    );
+
+    // Add email subscription for inexpensive products (price < BASE_PRODUCT_PRICE)
+    createProductTopic.addSubscription(
+      new subscriptions.EmailSubscription(SNS_REGULAR_PRODUCT_SUBSCRIPTION_EMAIL, {
+        filterPolicy: {
+          price: sns.SubscriptionFilter.numericFilter({
+            lessThan: BASE_PRODUCT_PRICE
+          })
+        }
+      })
+    );
+
+
+    // Create Lambda for processing SQS messages
+    const catalogBatchProcessLambda = new lambda.Function(this, `catalog-batch-process-${stage}`, {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../src/product-service'), {
+        bundling: {
+          image: lambda.Runtime.NODEJS_18_X.bundlingImage,
+          command: getLambdaBundlingBashCommand('catalogBatchProcess.js'),
+        },
+      }),
+      handler: 'dist/handlers/catalogBatchProcess.lambdaHandler',
+      memorySize: 128,
+      timeout: cdk.Duration.seconds(20),
+      environment: {
+        PRODUCT_TABLE_NAME: PRODUCT_TABLE_NAME,
+        STOCK_TABLE_NAME: STOCK_TABLE_NAME,
+        SNS_TOPIC_ARN: createProductTopic.topicArn
+      }
+    });
+
+    // Add SQS trigger to Lambda
+    catalogBatchProcessLambda.addEventSource(
+      new eventsources.SqsEventSource(catalogItemsQueue, {
+        batchSize: SQS_PROCESSING_BATCH_SIZE,
+        enabled: true,
+        maxBatchingWindow: cdk.Duration.seconds(10), // Maximum time to gather messages before invoking lambda
+        maxConcurrency: 2,
+        reportBatchItemFailures: true,
+      })
+    );
+
+    // Add required permissions
+    const sqsPolicy = new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'sqs:ReceiveMessage',
+        'sqs:DeleteMessage',
+        'sqs:GetQueueAttributes'
+      ],
+      resources: [catalogItemsQueue.queueArn]
+    });
+
+    // Add SNS publish permissions to Lambda
+    const snsPublishPolicy = new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['sns:Publish'],
+      resources: [createProductTopic.topicArn]
+    });
+
+    catalogBatchProcessLambda.addToRolePolicy(sqsPolicy);
+    catalogBatchProcessLambda.addToRolePolicy(snsPublishPolicy);
+    catalogBatchProcessLambda.addToRolePolicy(dynamoDBCreateProductPolicy);
+
+  
     // Create API Gateway
     const api = new apigateway.RestApi(this, `products-api-${stage}`, {
       restApiName: 'Products Service',

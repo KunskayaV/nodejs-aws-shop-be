@@ -33,3 +33,15 @@ export const validateProduct = (product: TCreateProductPayload): void => {
     throw new ValidationError('Count must be a non-negative integer');
   }
 };
+
+export const runValidationForProduct = (product: TCreateProductPayload) => {
+  // Validate the product data
+  try {
+    validateProduct(product);
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      throw error;
+    }
+    throw new ValidationError('Product validation failed');
+  }
+}

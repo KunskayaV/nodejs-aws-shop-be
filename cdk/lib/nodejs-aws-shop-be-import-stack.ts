@@ -22,11 +22,14 @@ export class NodejsAwsShopBeImportStack extends cdk.Stack {
     const stage = props?.stage || 'dev';
     const IMPORT_BUCKET_NAME = process.env.IMPORT_BUCKET_NAME || '';
     const IMPORT_BUCKET_PREFIX = process.env.IMPORT_BUCKET_PREFIX || '';
+    const SQS_BASE_NAME = process.env.SQS_BASE_NAME || '';
+    const SQS_PROCESSING_BATCH_SIZE = Number(process.env.SQS_PROCESSING_BATCH_SIZE) || 10;
+    const SQS_NAME = `${SQS_BASE_NAME}-${stage}`;
 
     // Reference existing S3 bucket
     const importBucket = s3.Bucket.fromBucketName(
       this, 
-      'ImportBucket', 
+      'ImportBucket',
       IMPORT_BUCKET_NAME
     );
 
@@ -70,6 +73,8 @@ export class NodejsAwsShopBeImportStack extends cdk.Stack {
       environment: {
         IMPORT_BUCKET_NAME: IMPORT_BUCKET_NAME,
         IMPORT_BUCKET_PREFIX: IMPORT_BUCKET_PREFIX,
+        SQS_NAME: SQS_NAME,
+        SQS_PROCESSING_BATCH_SIZE: String(SQS_PROCESSING_BATCH_SIZE),
       }
     });
 
@@ -98,6 +103,17 @@ export class NodejsAwsShopBeImportStack extends cdk.Stack {
         prefix: `${IMPORT_BUCKET_PREFIX}/`, // Only trigger for objects in the folder for upload
       }
     );
+
+    // Add SQS permissions to importFileParserLambda
+    importFileParserLambda.addToRolePolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'sqs:SendMessage',
+        'sqs:SendMessageBatch',
+        'sqs:GetQueueUrl',
+      ],
+      resources: [`arn:aws:sqs:${cdk.Stack.of(this).region}:${cdk.Stack.of(this).account}:${SQS_NAME}`]
+    }));
 
     // Create API Gateway
     const api = new apigateway.RestApi(this, `import-api-${stage}`, {
