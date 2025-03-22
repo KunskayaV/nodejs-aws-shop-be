@@ -9,3 +9,8 @@ cdk.out
 # be build
 build
 dist
+
+
+# Ignore .env file
+*.env
+*.env.*
